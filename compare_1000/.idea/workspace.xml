@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="0262c8ef-9640-42c3-959f-5e591f0038a4" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectId" id="1YzJ6c5U6qwfahJqVEF0jgnQwJU" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showExcludedFiles" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="settings.editor.selected.configurable" value="project.propVCSSupport.Mappings" />
+  </component>
+  <component name="RunManager">
+    <configuration name="compare_1000" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="compare_1000" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/compare_1000.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.compare_1000" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="0262c8ef-9640-42c3-959f-5e591f0038a4" name="Default Changelist" comment="" />
+      <created>1583939314205</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1583939314205</updated>
+      <workItem from="1583939325184" duration="5067000" />
+      <workItem from="1584442372435" duration="4135000" />
+      <workItem from="1584882571757" duration="11669000" />
+      <workItem from="1584995250090" duration="1833000" />
+      <workItem from="1584997846094" duration="5630000" />
+      <workItem from="1585488087425" duration="695000" />
+      <workItem from="1585576016138" duration="4729000" />
+    </task>
+    <task id="LOCAL-00001" summary="2 try">
+      <created>1585582764715</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1585582764715</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="1" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="2 try" />
+    <option name="LAST_COMMIT_MESSAGE" value="2 try" />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="679" y="138" key="#compare_1000" timestamp="1584883202269">
+      <screen x="0" y="0" width="1920" height="1050" />
+    </state>
+    <state x="679" y="138" key="#compare_1000/0.0.1920.1050@0.0.1920.1050" timestamp="1584883202269" />
+    <state x="585" y="118" key="CommitChangelistDialog2" timestamp="1585582764031">
+      <screen x="0" y="0" width="1920" height="1050" />
+    </state>
+    <state x="585" y="118" key="CommitChangelistDialog2/0.0.1920.1050@0.0.1920.1050" timestamp="1585582764031" />
+    <state x="694" y="285" key="EnvironmentVariablesDialog" timestamp="1584883172196">
+      <screen x="0" y="0" width="1920" height="1050" />
+    </state>
+    <state x="694" y="285" key="EnvironmentVariablesDialog/0.0.1920.1050@0.0.1920.1050" timestamp="1584883172196" />
+    <state x="739" y="265" key="FileChooserDialogImpl" timestamp="1585582692531">
+      <screen x="0" y="0" width="1920" height="1050" />
+    </state>
+    <state x="739" y="265" key="FileChooserDialogImpl/0.0.1920.1050@0.0.1920.1050" timestamp="1585582692531" />
+    <state x="826" y="417" key="Github.ShareDialog" timestamp="1585580658141">
+      <screen x="0" y="0" width="1920" height="1050" />
+    </state>
+    <state x="826" y="417" key="Github.ShareDialog/0.0.1920.1050@0.0.1920.1050" timestamp="1585580658141" />
+    <state x="703" y="229" key="Github.UntrackedFilesDialog" timestamp="1585580704490">
+      <screen x="0" y="0" width="1920" height="1050" />
+    </state>
+    <state x="703" y="229" key="Github.UntrackedFilesDialog/0.0.1920.1050@0.0.1920.1050" timestamp="1585580704490" />
+    <state width="938" height="280" key="GridCell.Tab.0.bottom" timestamp="1585582513734">
+      <screen x="0" y="0" width="1920" height="1050" />
+    </state>
+    <state width="1340" height="328" key="GridCell.Tab.0.bottom/0.0.1920.1040/-1920.0.1920.1040@-1920.0.1920.1040" timestamp="1583944397470" />
+    <state width="1340" height="266" key="GridCell.Tab.0.bottom/0.0.1920.1040/-1920.0.1920.1040@0.0.1920.1040" timestamp="1583941495160" />
+    <state width="938" height="280" key="GridCell.Tab.0.bottom/0.0.1920.1050@0.0.1920.1050" timestamp="1585582513734" />
+    <state width="938" height="280" key="GridCell.Tab.0.center" timestamp="1585582513734">
+      <screen x="0" y="0" width="1920" height="1050" />
+    </state>
+    <state width="1340" height="328" key="GridCell.Tab.0.center/0.0.1920.1040/-1920.0.1920.1040@-1920.0.1920.1040" timestamp="1583944397470" />
+    <state width="1340" height="266" key="GridCell.Tab.0.center/0.0.1920.1040/-1920.0.1920.1040@0.0.1920.1040" timestamp="1583941495160" />
+    <state width="938" height="280" key="GridCell.Tab.0.center/0.0.1920.1050@0.0.1920.1050" timestamp="1585582513734" />
+    <state width="938" height="280" key="GridCell.Tab.0.left" timestamp="1585582513734">
+      <screen x="0" y="0" width="1920" height="1050" />
+    </state>
+    <state width="1340" height="328" key="GridCell.Tab.0.left/0.0.1920.1040/-1920.0.1920.1040@-1920.0.1920.1040" timestamp="1583944397470" />
+    <state width="1340" height="266" key="GridCell.Tab.0.left/0.0.1920.1040/-1920.0.1920.1040@0.0.1920.1040" timestamp="1583941495160" />
+    <state width="938" height="280" key="GridCell.Tab.0.left/0.0.1920.1050@0.0.1920.1050" timestamp="1585582513734" />
+    <state width="938" height="280" key="GridCell.Tab.0.right" timestamp="1585582513734">
+      <screen x="0" y="0" width="1920" height="1050" />
+    </state>
+    <state width="1340" height="328" key="GridCell.Tab.0.right/0.0.1920.1040/-1920.0.1920.1040@-1920.0.1920.1040" timestamp="1583944397470" />
+    <state width="1340" height="266" key="GridCell.Tab.0.right/0.0.1920.1040/-1920.0.1920.1040@0.0.1920.1040" timestamp="1583941495160" />
+    <state width="938" height="280" key="GridCell.Tab.0.right/0.0.1920.1050@0.0.1920.1050" timestamp="1585582513734" />
+    <state width="1340" height="328" key="GridCell.Tab.1.bottom" timestamp="1583944397470">
+      <screen x="-1920" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1340" height="328" key="GridCell.Tab.1.bottom/0.0.1920.1040/-1920.0.1920.1040@-1920.0.1920.1040" timestamp="1583944397470" />
+    <state width="1340" height="328" key="GridCell.Tab.1.bottom/0.0.1920.1040/-1920.0.1920.1040@0.0.1920.1040" timestamp="1583941492430" />
+    <state width="1340" height="328" key="GridCell.Tab.1.center" timestamp="1583944397470">
+      <screen x="-1920" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1340" height="328" key="GridCell.Tab.1.center/0.0.1920.1040/-1920.0.1920.1040@-1920.0.1920.1040" timestamp="1583944397470" />
+    <state width="1340" height="328" key="GridCell.Tab.1.center/0.0.1920.1040/-1920.0.1920.1040@0.0.1920.1040" timestamp="1583941492429" />
+    <state width="1340" height="328" key="GridCell.Tab.1.left" timestamp="1583944397470">
+      <screen x="-1920" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1340" height="328" key="GridCell.Tab.1.left/0.0.1920.1040/-1920.0.1920.1040@-1920.0.1920.1040" timestamp="1583944397470" />
+    <state width="1340" height="328" key="GridCell.Tab.1.left/0.0.1920.1040/-1920.0.1920.1040@0.0.1920.1040" timestamp="1583941492429" />
+    <state width="1340" height="328" key="GridCell.Tab.1.right" timestamp="1583944397470">
+      <screen x="-1920" y="0" width="1920" height="1040" />
+    </state>
+    <state width="1340" height="328" key="GridCell.Tab.1.right/0.0.1920.1040/-1920.0.1920.1040@-1920.0.1920.1040" timestamp="1583944397470" />
+    <state width="1340" height="328" key="GridCell.Tab.1.right/0.0.1920.1040/-1920.0.1920.1040@0.0.1920.1040" timestamp="1583941492430" />
+    <state x="461" y="155" key="SettingsEditor" timestamp="1585582709216">
+      <screen x="0" y="0" width="1920" height="1050" />
+    </state>
+    <state x="461" y="155" key="SettingsEditor/0.0.1920.1050@0.0.1920.1050" timestamp="1585582709216" />
+    <state x="552" y="256" key="Vcs.Push.Dialog.v2" timestamp="1585583523099">
+      <screen x="0" y="0" width="1920" height="1050" />
+    </state>
+    <state x="552" y="256" key="Vcs.Push.Dialog.v2/0.0.1920.1050@0.0.1920.1050" timestamp="1585583523099" />
+    <state x="833" y="372" key="com.intellij.ide.util.TipDialog" timestamp="1585576021287">
+      <screen x="0" y="0" width="1920" height="1050" />
+    </state>
+    <state x="-1087" y="368" key="com.intellij.ide.util.TipDialog/0.0.1920.1040/-1920.0.1920.1040@-1920.0.1920.1040" timestamp="1584442413683" />
+    <state x="833" y="372" key="com.intellij.ide.util.TipDialog/0.0.1920.1050@0.0.1920.1050" timestamp="1585576021287" />
+    <state x="761" y="388" key="git4idea.rebase.GitRebaseDialog" timestamp="1585580255604">
+      <screen x="0" y="0" width="1920" height="1050" />
+    </state>
+    <state x="761" y="388" key="git4idea.rebase.GitRebaseDialog/0.0.1920.1050@0.0.1920.1050" timestamp="1585580255604" />
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/compare_1000$compare_1000.coverage" NAME="compare_1000 Coverage Results" MODIFIED="1585580098742" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+  </component>
+</project>
