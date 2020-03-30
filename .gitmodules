@@ -1,0 +1,3 @@
+[submodule "benchmarks_report"]
+	path = benchmarks_report
+	url = https://github.com/kromin/benchmarks_report
