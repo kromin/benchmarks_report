@@ -4,6 +4,7 @@ import os
 import sys
 from subprocess import Popen, PIPE
 
+# Opening subfolder tools
 # Открываем подпапку tools
 cmd_subfolder = os.path.realpath(
     os.path.abspath(os.path.join(os.path.split(inspect.getfile(inspect.currentframe()))[0], "tools")))
@@ -12,20 +13,19 @@ if cmd_subfolder not in sys.path:
 
 
 # Получаем все имена .JSON в папке
-def GetFilesJSON(path):
+def get_json_filenames(path):
+    """Get names ending with .json in path and return list of names"""
     names = []
-
     for file in os.listdir(path):
         if file.endswith(".json"):
             names.append(file)
-
     return names
 
 
 # Используя скрипт Google Benchmark compare.py проверяем два файла
-def CompareTwo(file1, file2, path):
+def compare_pair(file1, file2, path):
+    """Compare two files using Google Benchmark compare.py script and return output string and error, if occurs"""
     path_to_current_folder = os.path.dirname(os.path.realpath(__file__))
-
     process = Popen(
         ['python', path_to_current_folder + '/tools/compare.py', 'benchmarks',
          path + file1,
@@ -33,67 +33,69 @@ def CompareTwo(file1, file2, path):
         stdout=PIPE, stderr=PIPE, universal_newlines=True
     )
     (output, err) = process.communicate()
-
     return output, err
 
 
-def GetLRNums(nums):
+# Создаем массив с левым и правым столбцами дельт
+def get_lr_mums(nums):
+    """Return an array with left and right columns of deviations"""
     n = len(nums)
-    lrNums = numpy.zeros((int(n / 2), 2))
-
-    # Создаем массив с левым и правым столбцами дельт
+    lr_nums = numpy.zeros((int(n / 2), 2))
     j = 0
     for i in range(n):
         if i % 2 == 0:
-            lrNums[j][0] = nums[i]
+            lr_nums[j][0] = nums[i]
         else:
-            lrNums[j][1] = nums[i]
+            lr_nums[j][1] = nums[i]
             j += 1
-    return lrNums
+    return lr_nums
 
 
 # Находим числа отклонений вида х.хххх со знаками + или - перед ними и помещаем в массив
-def FindNums(sOut):
+def find_nums(output_string):
+    """Find numbers (deviations) of a kind +x.xxxx or -x.xxxx and return array of these numbers"""
     nums = []
-    tempS = sOut
-    while tempS != '':
-        if tempS[0] == '+':
-            tempS = tempS[tempS.find('+') + 1:]
+    temp_string = output_string
+    while temp_string:
+        if temp_string.startswith('+'):
+            temp_string = temp_string[1:]
             try:
-                nums.append(float(tempS[:6]))
+                nums.append(float(temp_string[:6]))
             except ValueError:
                 pass
-        elif tempS[0] == '-' and tempS[1] == '0':
-            tempS = tempS[tempS.find('-') + 1:]
+        elif temp_string.startswith('-0'):
+            temp_string = temp_string[1:]
             try:
-                nums.append(-1 * float(tempS[:6]))
+                nums.append(-1 * float(temp_string[:6]))
             except ValueError:
                 pass
         else:
-            tempS = tempS[1:]
-    lrNums = GetLRNums(nums)
-    return lrNums
+            temp_string = temp_string[1:]
+    lr_nums = get_lr_mums(nums)
+    return lr_nums
 
 
 # Находим отклонение на величину >= 0.05
-def FindLargeDeviation(lrNums):
-    n = len(lrNums)
+def find_large_deviation(lr_nums):
+    """Find deviation greater than 0.5 and return array of line indexes"""
+    n = len(lr_nums)
     indexes = numpy.zeros((n, 2))
 
-    # находим отклонения большие 0.05 и помечаем номера строк (начало отсчета с первых цифр)
+    # Находим отклонения большие 0.05 и помещаем номера строк в массив (начало отсчета с первых цифр)
+    # Если отклонение положительно, то номер строки положителен, и наоборот
     j = 0
     for i in range(n):
         flag = False
-        if lrNums[i][0] >= 0.05:
+        if lr_nums[i][0] >= 0.05:
             indexes[j][0] = i
             flag = True
-        if lrNums[i][1] >= 0.05:
+        if lr_nums[i][1] >= 0.05:
             indexes[j][1] = i
             flag = True
-        if lrNums[i][0] <= -0.05:
+        if lr_nums[i][0] <= -0.05:
             indexes[j][0] = -1 * i
             flag = True
-        if lrNums[i][1] <= -0.05:
+        if lr_nums[i][1] <= -0.05:
             indexes[j][1] = -1 * i
             flag = True
         if flag:
@@ -103,34 +105,59 @@ def FindLargeDeviation(lrNums):
 
 
 # Попарная проверка всех файлов в директории
-def CompareAll(path, names):
-    linesInFile = []
+def compare_all(path, names):
+    """Compare all files in directory and return list of arrays containing deviations greater than 0.5"""
+    lines_in_file = []
     err = ''
     for i in range(1, len(names)):
-        output, err = CompareTwo(names[i - 1], names[i], path)  # Сравниваем попарно
-        print(names[i - 1] + ' and ' + names[i])
-        print(output)
-        nums_output = FindNums(output)  # Находим числа отклонений
-        lineNumber = FindLargeDeviation(nums_output)  # Среди них находим большие отклонения
-        linesInFile.append(lineNumber)
+        # Compare files in pairs
+        # Сравниваем файлы попарно
+        output, err = compare_pair(names[i - 1], names[i], path)
+        print('Operating with ' + names[i - 1] + ' and ' + names[i])
+        # print(output)
 
-    return linesInFile, err
+        # Find numbers of deviations in output
+        # Находим числа отклонений
+        nums_output = find_nums(output)
+
+        # Get array of line numbers of deviations greater than 0.5
+        # Получаем массив номеров строк отклонений, больших чем 0,5
+        line_number = find_large_deviation(nums_output)
+
+        # Put array into list
+        # Кладем массив в список
+        lines_in_file.append(line_number)
+    return lines_in_file, err
+
+
+# Приводим путь к нормальному виду
+def normalize_path(path):
+    """Return normalized path string"""
+    while path.startswith(' '):
+        path = path[1:]
+    if not path.endswith('/'):
+        path = path + '/'
+    return path
 
 
 def main():
-    print('Enter full path to the benchmark reports folder')
-    s = input()
-    if s.rfind('/') != len(s) - 1:
-        s = s + '/'
-    pathToBenchmarks = s  # Ввод директории с бенчмарками  (пример: c:/users/trusovii/desktop/results/,
-                                                                # c:/users/admin/desktop/MOEX/results/)
+    # Take input from user
+    # Ввод директории с бенчмарками
+    # (ex: c:/users/trusovii/desktop/results/, c:/users/admin/desktop/MOEX/results/)
+    print("Enter full pathname of the benchmark reports' folder")
+    path_to_benchmarks = normalize_path(input())
 
-    filename = GetFilesJSON(pathToBenchmarks)  # Получаем имена файлов JSON
-    linesInFile, err = CompareAll(pathToBenchmarks, filename)
+    filename = get_json_filenames(path_to_benchmarks)
 
-    print(linesInFile)
-    if err != '':
+    # Get list of arrays of line numbers with deviations greater than 0.5
+    # Получаем список из массивов номеров строк с отклонениями > 0.5
+    lines_in_file, err = compare_all(path_to_benchmarks, filename)
+
+    print(lines_in_file)
+    if err:
         print('    err:::', err)
+
+    # Дальнейшая работа со списком
 
 
 if __name__ == '__main__':
