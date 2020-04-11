@@ -2,6 +2,8 @@ import inspect
 import numpy
 import os
 import sys
+import argparse
+import termcolor
 from subprocess import Popen, PIPE
 
 # Opening subfolder tools
@@ -106,15 +108,24 @@ def find_large_deviation(lr_nums):
 
 # Попарная проверка всех файлов в директории
 def compare_all(path, names):
-    """Compare all files in directory and return list of arrays containing deviations greater than 0.5"""
+    """Compare all files in directory and return list of arrays containing deviations greater than 0.5
+    and text for beautified output"""
     lines_in_file = []
+    lines_out = []
     err = ''
+    are_lines_output_made = False
     for i in range(1, len(names)):
         # Compare files in pairs
         # Сравниваем файлы попарно
         output, err = compare_pair(names[i - 1], names[i], path)
-        print('Operating with ' + names[i - 1] + ' and ' + names[i])
+
+        print('Comparing {0} to {1}'.format(names[i - 1], names[i]))
         # print(output)
+        # Make lines for beautified output
+        # Создаем строки для красивого вывода
+        if not are_lines_output_made:
+            lines_out = lines_output(output)
+            are_lines_output_made = True
 
         # Find numbers of deviations in output
         # Находим числа отклонений
@@ -127,7 +138,7 @@ def compare_all(path, names):
         # Put array into list
         # Кладем массив в список
         lines_in_file.append(line_number)
-    return lines_in_file, err
+    return lines_in_file, err, lines_out
 
 
 # Приводим путь к нормальному виду
@@ -140,24 +151,88 @@ def normalize_path(path):
     return path
 
 
+# Возвращаем строки с названиями бенчмарков
+def lines_output(output):
+    """Return array of lines for beatified output"""
+    lines = []
+    while output:
+        if output.startswith('Portf'):
+            lines.append(output[:64])  # 43
+            output = output[1:]
+        elif output.startswith('Match'):
+            lines.append(output[:64])  # 61
+            output = output[1:]
+        elif output.startswith('Misc'):
+            lines.append(output[:64])  # 34
+            output = output[1:]
+        else:
+            output = output[1:]
+    return lines
+
+
+# Красивый вывод
+def output_message(lines_in_file, lines_out, filename):
+    """Print beautified output"""
+    worse = termcolor.colored('became worse ', 'red')
+    better = termcolor.colored('became better', 'green')
+    for i in range(1, len(filename)):
+        print("\nComparison of {0} and {1}: ".format(filename[i - 1], filename[i]))
+        j = i - 1
+        for k in range(len(lines_in_file[j])):
+            if lines_in_file[j].item((k, 0)) != 0. and lines_in_file[j].item((k, 1)) != 0.:
+                if lines_in_file[j].item((k, 0)) > 0. and lines_in_file[j].item((k, 1)) > 0.:
+                    print('    {0}  "Time" {1}    "CPU" {2}'.format(lines_out[k], worse, worse))
+                elif lines_in_file[j].item((k, 0)) > 0. and lines_in_file[j].item((k, 1)) < 0.:
+                    print('    {0}  "Time" {1}    "CPU" {2}'.format(lines_out[k], worse, better))
+                elif lines_in_file[j].item((k, 0)) < 0. and lines_in_file[j].item((k, 1)) > 0.:
+                    print('    {0}  "Time" {1}    "CPU" {2}'.format(lines_out[k], better, worse))
+                else:
+                    print('    {0}  "Time" {1}    "CPU" {2}'.format(lines_out[k], better, better))
+            elif lines_in_file[j].item((k, 0)) != 0.:
+                if lines_in_file[j].item((k, 0)) > 0.:
+                    print('    {0}  "Time" {1}'.format(lines_out[k], worse))
+                if lines_in_file[j].item((k, 0)) < 0.:
+                    print('    {0}  "Time" {1}'.format(lines_out[k], better))
+            else:
+                if lines_in_file[j].item((k, 1)) > 0.:
+                    print('    {0}                          "CPU" {1}'.format(lines_out[k], worse))
+                if lines_in_file[j].item((k, 1)) < 0.:
+                    print('    {0}                          "CPU" {1}'.format(lines_out[k], better))
+
+
+def graphs():
+    """Draw graphs for 2 (or more) versions"""
+    return 0
+
+
 def main():
     # Take input from user
     # Ввод директории с бенчмарками
     # (ex: c:/users/trusovii/desktop/results/, c:/users/admin/desktop/MOEX/results/)
-    print("Enter full pathname of the benchmark reports' folder")
-    path_to_benchmarks = normalize_path(input())
+    parser = argparse.ArgumentParser(
+        description='compare tool for more than 2 benchmark outputs')
+    parser.add_argument(
+        '--path',
+        help="path to benchmark-reports' folder",
+        default="c:/users/admin/desktop/MOEX/results/")
+    args = parser.parse_args()
 
+    print("In progress\n")
+
+    # print("Enter full pathname of the benchmark-reports' folder")
+    path_to_benchmarks = normalize_path(args.path)
     filename = get_json_filenames(path_to_benchmarks)
 
     # Get list of arrays of line numbers with deviations greater than 0.5
     # Получаем список из массивов номеров строк с отклонениями > 0.5
-    lines_in_file, err = compare_all(path_to_benchmarks, filename)
+    lines_in_file, err, lines_out = compare_all(path_to_benchmarks, filename)
 
-    print(lines_in_file)
     if err:
         print('    err:::', err)
+    output_message(lines_in_file, lines_out, filename)
 
-    # Дальнейшая работа со списком
+    # TODO: Улучшить вывод программы:
+    #      * График для двух (и более) версий, учитывая все значения
 
 
 if __name__ == '__main__':
