@@ -197,7 +197,6 @@ BC_FAIL = report.BC_FAIL
 BC_ENDC = report.BC_ENDC
 BC_BOLD = report.BC_BOLD
 BC_UNDERLINE = report.BC_UNDERLINE
-BC_GRAY = report.BC_GRAY
 
 
 def find_longest_name(benchmark_names):
