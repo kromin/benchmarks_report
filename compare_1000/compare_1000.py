@@ -47,7 +47,7 @@ class Presenter:
     def __init__(self, model):
         """Constructor"""
         self.model = model  # экземпляр класса Модель
-        self.benchmark_names = []
+        self.benchmark_names = []  # список названий бенчмарков
         self.delta_in_file = []  # список чисел отклонений
         self.lines_in_file = []  # список массивов номеров строк отклонений
         self.err = ''  # возможная ошибка при прочтении файлов
@@ -217,7 +217,7 @@ class View:
 
     def __init__(self, presenter):
         """Constructor"""
-        self.presenter = presenter
+        self.presenter = presenter  # Обработчик с данными
 
     def names_to_str(self):
         """Return string out of filename-list for output message"""
@@ -286,6 +286,7 @@ class View:
         return string
 
     def output_message(self):
+        """Return an array of strings for output"""
         first_col_width = find_longest_name(self.presenter.benchmark_names)
         first_col_width = max(
             first_col_width,
@@ -322,16 +323,19 @@ class View:
         return message
 
     def print_cmd_f(self):
+        """Print full output in command line"""
         self.presenter.compare_all()
 
         if self.presenter.err:
             print('    err:::', self.presenter.err)
 
-        if len(self.presenter.model.filenames) < 9:
-            for line in self.output_message():
-                print(line)
-        else:
-            pass
+        for line in self.output_message():
+            print(line)
+
+        # if len(self.presenter.model.filenames) < 9:
+        #
+        # else:
+        #     pass
         # if len(self.presenter.model.filenames) < 3:
         #     self.output_message_for_two()
         # elif 3 <= len(self.presenter.model.filenames) < 7:
@@ -343,8 +347,17 @@ class View:
         #         del filenames[:5]
         #         del delta_in_file[:5]
 
-    def print_pdf(self):
+    def print_cmd_a(self):
+        """Print analysis output in command line"""
         pass
+
+    def print_pdf_f(self):
+        """Print full output in pdf-file"""
+        return ''
+
+    def print_pdf_a(self):
+        """Print analysis output in pdf-file"""
+        return ''
 
 
 # Приводим путь к нормальному виду
@@ -358,6 +371,21 @@ def normalize_path(path):
 
 
 def create_parser():
+    """
+    Create parser for input
+
+    compare_1000.py
+    path - input path to benchmark-reports' folder
+    cmd - output in command line
+        -f, --full - full output
+
+    not supported yet:
+        -a, --analysis - analysis output
+    pdf - output in pdf-file
+        output - direct the output to a name of your choice
+        -f, --full - full output
+        -a, --analysis - analysis output
+    """
     parser = argparse.ArgumentParser(
         description='compare tool for more than 2 benchmark outputs')
     parser.add_argument(
@@ -373,7 +401,7 @@ def create_parser():
 
     cmd_parser = subparsers.add_parser(
         'cmd',
-        help='Program writes output in cmd'
+        help='Program writes report in cmd'
     )
     cmd_group = cmd_parser.add_mutually_exclusive_group(required=True)
     cmd_group.add_argument(
@@ -393,7 +421,7 @@ def create_parser():
 
     pdf_parser = subparsers.add_parser(
         'pdf',
-        help='Program writes output in pdf-file, saves it in a specified path'
+        help='Program writes report in pdf-file, saves it in a specified path'
     )
     pdf_parser.add_argument(
         'output',
@@ -446,12 +474,6 @@ def main():
             elif args.a:
                 output_file.write(showing.print_pdf_a())
         output_file.close()
-
-    # processing = Presenter(files)
-    # processing.compare_all()
-    #
-    # showing = View()
-    # showing.print_cmd()
 
 
 if __name__ == '__main__':
