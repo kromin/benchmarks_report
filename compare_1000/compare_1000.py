@@ -4,6 +4,7 @@ import os
 import sys
 import argparse
 from subprocess import Popen, PIPE
+from tools.gbench import report
 
 # Opening subfolder tools
 # Открываем подпапку tools
@@ -13,133 +14,338 @@ if cmd_subfolder not in sys.path:
     sys.path.insert(0, cmd_subfolder)
 
 
-# Получаем все имена .JSON в папке
-def get_json_filenames(path):
-    """Get names ending with .json in path and return list of names"""
-    names = []
-    for file in os.listdir(path):
-        if file.endswith(".json"):
-            names.append(file)
-    return names
+class Model:
+    """
+    Model for MVP
+    input: 'path', '.extension'
+
+    Find files, collects their names and their amount in specified path
+    """
+
+    def __init__(self, path, extension='.json'):
+        """Constructor creates variables 'names' and 'extension'"""
+        self.filenames = []
+        for file in os.listdir(path):
+            if file.endswith(extension):
+                self.filenames.append(file)
+        self.path = path
+        self.extension = extension
+
+    def get_amount(self):
+        """Get quantity of json files"""
+        return len(self.filenames)
 
 
-# Используя скрипт Google Benchmark compare.py проверяем два файла
-def compare_pair(file1, file2, path):
-    """Compare two files using Google Benchmark compare.py script and return output string and error, if occurs"""
-    path_to_current_folder = os.path.dirname(os.path.realpath(__file__))
-    process = Popen(
-        ['python', path_to_current_folder + '/tools/compare.py', 'benchmarks',
-         path + file1,
-         path + file2],
-        stdout=PIPE, stderr=PIPE, universal_newlines=True
-    )
-    (output, err) = process.communicate()
-    return output, err
+class Presenter:
+    """
+    Presenter for MVP
+    input: 'data' - from Model
+
+    Compares and analyses benchmark data inside
+    """
+
+    def __init__(self, model):
+        """Constructor"""
+        self.model = model  # экземпляр класса Модель
+        self.benchmark_names = []
+        self.delta_in_file = []  # список чисел отклонений
+        self.lines_in_file = []  # список массивов номеров строк отклонений
+        self.err = ''  # возможная ошибка при прочтении файлов
+
+    def compare_pair(self, file1, file2):
+        """Compare two files using Google Benchmark compare.py script and return output string and error, if occurs"""
+        print('Comparing {0} to {1}'.format(file1, file2))
+        path_to_current_folder = os.path.dirname(os.path.realpath(__file__))
+        process = Popen(
+            ['python', path_to_current_folder + '/tools/compare.py', 'benchmarks',
+             self.model.path + file1,
+             self.model.path + file2],
+            stdout=PIPE, stderr=PIPE, universal_newlines=True
+        )
+        (output, err) = process.communicate()
+        return output, err
+
+    def lines_output(self, output):
+        """Return array of lines for beatified output"""
+        while output:
+            if output.startswith('Portf'):
+                self.benchmark_names.append(output[:64])  # 43
+                output = output[1:]
+            elif output.startswith('Match'):
+                self.benchmark_names.append(output[:64])  # 61
+                output = output[1:]
+            elif output.startswith('Misc'):
+                self.benchmark_names.append(output[:64])  # 34
+                output = output[1:]
+            else:
+                output = output[1:]
+        return self.benchmark_names
+
+    # Создаем массив с левым и правым столбцами дельт
+    @staticmethod
+    def get_lr_nums(nums):
+        """Return an array with 2 columns out of line"""
+        n = len(nums)
+        lr_nums = numpy.zeros((int(n / 2), 2))
+        j = 0
+        for i in range(n):
+            if i % 2 == 0:
+                lr_nums[j][0] = nums[i]
+            else:
+                lr_nums[j][1] = nums[i]
+                j += 1
+        return lr_nums
+
+    # Находим числа отклонений вида х.хххх со знаками + или - перед ними и помещаем в массив
+    def find_nums(self, output_string):
+        """
+        Find numbers (deviations) of a kind +x.xxxx or -x.xxxx
+        and return array of these numbers
+        """
+        nums = []
+        temp_string = output_string
+        while temp_string:
+            if temp_string.startswith('+'):
+                temp_string = temp_string[1:]
+                try:
+                    nums.append(float(temp_string[:6]))
+                except ValueError:
+                    pass
+            elif temp_string.startswith('-0'):
+                temp_string = temp_string[1:]
+                try:
+                    nums.append(-1 * float(temp_string[:6]))
+                except ValueError:
+                    pass
+            else:
+                temp_string = temp_string[1:]
+        lr_nums = self.get_lr_nums(nums)
+        return lr_nums
+
+    # Находим отклонение на величину >= 0.05
+    @staticmethod
+    def find_large_deviation(nums):
+        """Find deviation greater than 0.5 and return array of line indexes"""
+        n = len(nums)
+        indexes = numpy.zeros((n, 2))
+
+        # Находим отклонения большие 0.05 и помещаем номера строк в массив (начало отсчета с первых цифр)
+        # Если отклонение положительно, то номер строки положителен, и наоборот
+        j = 0
+        for i in range(n):
+            flag = False
+            if nums[i][0] >= 0.05:
+                indexes[j][0] = i
+                flag = True
+            if nums[i][1] >= 0.05:
+                indexes[j][1] = i
+                flag = True
+            if nums[i][0] <= -0.05:
+                indexes[j][0] = -1 * i
+                flag = True
+            if nums[i][1] <= -0.05:
+                indexes[j][1] = -1 * i
+                flag = True
+            if flag:
+                j += 1
+        indexes = numpy.delete(indexes, slice(j, n), 0)
+        return indexes
+
+    def compare_all(self):
+        """
+        Compare all files in directory and return list of arrays containing deviations greater than 0.5,
+        text for beautified output and list of arrays containing # of lines of deviations in file
+        """
+        are_lines_output_made = False
+
+        for i in range(1, len(self.model.filenames)):
+            # Compare files in pairs
+            # Сравниваем файлы попарно
+            output, self.err = self.compare_pair(self.model.filenames[i - 1], self.model.filenames[i])
+
+            # print(output)
+            # Make lines for beautified output
+            # Создаем строки для красивого вывода
+            if not are_lines_output_made:
+                self.lines_output(output)
+                are_lines_output_made = True
+
+            # Find numbers of deviations in output, put them into list
+            # Находим числа отклонений, кладем в список в виде
+            nums_output = self.find_nums(output)
+            self.delta_in_file.append(nums_output)
+
+            # Get array of line numbers of deviations greater than 0.5
+            # Получаем массив номеров строк отклонений, больших чем 0,5
+            line_number = self.find_large_deviation(nums_output)
+
+            # Put array into list
+            # Кладем массив в список
+            self.lines_in_file.append(line_number)
+        return self.lines_in_file, self.err, self.delta_in_file
 
 
-# Создаем массив с левым и правым столбцами дельт
-def get_lr_mums(nums):
-    """Return an array with 2 columns out of line"""
-    n = len(nums)
-    lr_nums = numpy.zeros((int(n / 2), 2))
-    j = 0
-    for i in range(n):
-        if i % 2 == 0:
-            lr_nums[j][0] = nums[i]
+BC_NONE = report.BC_NONE
+BC_MAGENTA = report.BC_MAGENTA
+BC_CYAN = report.BC_CYAN
+BC_OKBLUE = report.BC_OKBLUE
+BC_OKGREEN = report.BC_OKGREEN
+BC_HEADER = report.BC_HEADER
+BC_WARNING = report.BC_WARNING
+BC_WHITE = report.BC_WHITE
+BC_FAIL = report.BC_FAIL
+BC_ENDC = report.BC_ENDC
+BC_BOLD = report.BC_BOLD
+BC_UNDERLINE = report.BC_UNDERLINE
+BC_GRAY = report.BC_GRAY
+
+
+def find_longest_name(benchmark_names):
+    first_col_width = 1
+    for k in range(len(benchmark_names)):
+        if first_col_width < len(benchmark_names[k]):
+            first_col_width = len(benchmark_names[k])
+    return first_col_width
+
+
+class View:
+    """
+    View for MVP
+    inputs: 'data' - from Presenter, 'benchmark_names'
+
+    Makes an output in cmd or pdf-file
+    """
+
+    def __init__(self, presenter):
+        """Constructor"""
+        self.presenter = presenter
+
+    def names_to_str(self):
+        """Return string out of filename-list for output message"""
+        s = ''
+        for i in range(len(self.presenter.model.filenames)):
+            s += self.presenter.model.filenames[i][:11]
+            if i != len(self.presenter.model.filenames) - 1:
+                s += '{:^8}'.format(r'\/')
+        return s
+
+    def more_zeros(self, lines):
+        """Return an array with added 0.0 where needed"""
+        n = len(self.presenter.benchmark_names)
+        double = numpy.zeros((n, 2))
+        for i in range(1, n):
+            for k in range(len(lines)):
+                if i == abs(lines[k][0]) or i == abs(lines[k][1]):
+                    if lines[k][0] != 0 or lines[k][1] != 0:
+                        double[i][0] = lines[k][0]
+                        double[i][1] = lines[k][1]
+        return double
+
+    @staticmethod
+    def time_cpu_is_improved(time, cpu):
+        """Return if Time and CPU values improved/worsened/within error"""
+        time_is_improved = 0
+        cpu_is_improved = 0
+        if time != 0 and cpu != 0:  # if both != 0
+            # number = time
+            if time > 0:  # if time is worsened
+                if cpu < 0:  # if cpu is improved
+                    cpu_is_improved = 1
+            else:  # if time is improved
+                time_is_improved = 1
+                if cpu < 0:  # if cpu is improved
+                    cpu_is_improved = 1
+        elif time != 0:  # if cpu is within error
+            # number = time
+            cpu_is_improved = -1
+            if time < 0:  # if time is improved
+                time_is_improved = 1
+        elif cpu != 0:  # if time is within error
+            # number = cpu
+            time_is_improved = -1
+            if cpu < 0:  # if cpu is improved
+                cpu_is_improved = 1
         else:
-            lr_nums[j][1] = nums[i]
-            j += 1
-    return lr_nums
+            # number = 0
+            time_is_improved = -1
+            cpu_is_improved = -1
+        return time_is_improved, cpu_is_improved
 
-
-# Находим числа отклонений вида х.хххх со знаками + или - перед ними и помещаем в массив
-def find_nums(output_string):
-    """Find numbers (deviations) of a kind +x.xxxx or -x.xxxx and return array of these numbers"""
-    nums = []
-    temp_string = output_string
-    while temp_string:
-        if temp_string.startswith('+'):
-            temp_string = temp_string[1:]
-            try:
-                nums.append(float(temp_string[:6]))
-            except ValueError:
-                pass
-        elif temp_string.startswith('-0'):
-            temp_string = temp_string[1:]
-            try:
-                nums.append(-1 * float(temp_string[:6]))
-            except ValueError:
-                pass
+    @staticmethod
+    def choose_color(is_improved, delta):
+        """Return a colored string with a value for output message"""
+        if is_improved == 1:
+            color = BC_CYAN
+        elif is_improved == 0:
+            color = BC_FAIL
         else:
-            temp_string = temp_string[1:]
-    lr_nums = get_lr_mums(nums)
-    return lr_nums
+            color = BC_NONE
+        string = '{}{:+8.4f}'.format(
+            color,
+            delta
+        )
+        return string
 
+    def output_message(self):
+        first_col_width = find_longest_name(self.presenter.benchmark_names)
+        first_col_width = max(
+            first_col_width,
+            len('Benchmark'))
 
-# Находим отклонение на величину >= 0.05
-def find_large_deviation(lr_nums):
-    """Find deviation greater than 0.5 and return array of line indexes"""
-    n = len(lr_nums)
-    indexes = numpy.zeros((n, 2))
+        first_line = '\n{:<{}s}{}'.format('Benchmark',
+                                          first_col_width,
+                                          self.names_to_str())
+        bar = '{:-<{}s}{:-^17}{:-<{}s}'.format('',
+                                               first_col_width + 6,
+                                               '(Time; CPU)',
+                                               '',
+                                               len(first_line) - first_col_width - 24
+                                               )
+        message = [first_line, bar]
 
-    # Находим отклонения большие 0.05 и помещаем номера строк в массив (начало отсчета с первых цифр)
-    # Если отклонение положительно, то номер строки положителен, и наоборот
-    j = 0
-    for i in range(n):
-        flag = False
-        if lr_nums[i][0] >= 0.05:
-            indexes[j][0] = i
-            flag = True
-        if lr_nums[i][1] >= 0.05:
-            indexes[j][1] = i
-            flag = True
-        if lr_nums[i][0] <= -0.05:
-            indexes[j][0] = -1 * i
-            flag = True
-        if lr_nums[i][1] <= -0.05:
-            indexes[j][1] = -1 * i
-            flag = True
-        if flag:
-            j += 1
-    indexes = numpy.delete(indexes, slice(j, n), 0)
-    return indexes
+        for i in range(len(self.presenter.benchmark_names)):
+            time_cpu_res = ''
+            for k in range(len(self.presenter.model.filenames) - 1):
+                full_lines = self.more_zeros(self.presenter.lines_in_file[k])
+                time = full_lines[i][0]
+                cpu = full_lines[i][1]
+                time_is_improved, cpu_is_improved = self.time_cpu_is_improved(time, cpu)
+                delta_0 = self.presenter.delta_in_file[k].item(i, 0)
+                delta_1 = self.presenter.delta_in_file[k].item(i, 1)
+                time_cpu_res += '{:8}{endc};{:8}{endc} |'.format(self.choose_color(time_is_improved, delta_0),
+                                                                 self.choose_color(cpu_is_improved, delta_1),
+                                                                 endc=BC_ENDC)
+            message += ['{}{:<{}}{endc}{}'.format(BC_HEADER,
+                                                  self.presenter.benchmark_names[i],
+                                                  first_col_width + 6,
+                                                  time_cpu_res,
+                                                  endc=BC_ENDC)]
+        return message
 
+    def print_cmd_f(self):
+        self.presenter.compare_all()
 
-# Попарная проверка всех файлов в директории
-def compare_all(path, names):
-    """Compare all files in directory and return list of arrays containing deviations greater than 0.5,
-    text for beautified output and list of arrays containing # of lines of deviations in file"""
-    lines_in_file = []
-    delta_in_file = []
-    lines_out = []
-    err = ''
-    are_lines_output_made = False
-    for i in range(1, len(names)):
-        # Compare files in pairs
-        # Сравниваем файлы попарно
-        output, err = compare_pair(names[i - 1], names[i], path)
+        if self.presenter.err:
+            print('    err:::', self.presenter.err)
 
-        print('Comparing {0} to {1}'.format(names[i - 1], names[i]))
-        # print(output)
-        # Make lines for beautified output
-        # Создаем строки для красивого вывода
-        if not are_lines_output_made:
-            lines_out = lines_output(output)
-            are_lines_output_made = True
+        if len(self.presenter.model.filenames) < 9:
+            for line in self.output_message():
+                print(line)
+        else:
+            pass
+        # if len(self.presenter.model.filenames) < 3:
+        #     self.output_message_for_two()
+        # elif 3 <= len(self.presenter.model.filenames) < 7:
+        #     self.output_message_for_many()
+        # else:
+        #     while self.presenter.model.filenames:
+        #         output_message_for_many(lines_in_file[:6], lines_out, filenames[:6], delta_in_file[:6])
+        #         del lines_in_file[:5]
+        #         del filenames[:5]
+        #         del delta_in_file[:5]
 
-        # Find numbers of deviations in output, put them into list
-        # Находим числа отклонений, кладем в список
-        nums_output = find_nums(output)
-        delta_in_file.append(nums_output)
-
-        # Get array of line numbers of deviations greater than 0.5
-        # Получаем массив номеров строк отклонений, больших чем 0,5
-        line_number = find_large_deviation(nums_output)
-
-        # Put array into list
-        # Кладем массив в список
-        lines_in_file.append(line_number)
-    return lines_in_file, err, lines_out, delta_in_file
+    def print_pdf(self):
+        pass
 
 
 # Приводим путь к нормальному виду
@@ -152,228 +358,102 @@ def normalize_path(path):
     return path
 
 
-# Возвращаем строки с названиями бенчмарков
-def lines_output(output):
-    """Return array of lines for beatified output"""
-    lines = []
-    while output:
-        if output.startswith('Portf'):
-            lines.append(output[:64])  # 43
-            output = output[1:]
-        elif output.startswith('Match'):
-            lines.append(output[:64])  # 61
-            output = output[1:]
-        elif output.startswith('Misc'):
-            lines.append(output[:64])  # 34
-            output = output[1:]
-        else:
-            output = output[1:]
-    return lines
-
-
-# Класс для форматирования вывода в командную строку
-class CMDFormat:
-    """Class for color codes used in CMD"""
-    CEND = '\33[0m'
-    CWAVEBLUE = '\33[36;1m'
-    CLIGHTGREEN = '\33[32;1m'
-    CSTRONGRED = '\33[31;1m'
-    CGRAY = '\33[37m'
-    CWHITE = '\33[37;1m'
-    SPACE = '        '
-    LINE = '--------'
-
-
-# Функция вывода текста нужного цвета
-def print_for_two(benchmark_name, filename, time_is_improved, delta_0, cpu_is_improved, delta_1):
-    delta_0 = str(delta_0)
-    delta_1 = str(delta_1)
-    if time_is_improved == 1:
-        time_str = CMDFormat.CWAVEBLUE + 'improved by  ' + delta_0 + CMDFormat.CEND
-    elif time_is_improved == 0:
-        time_str = CMDFormat.CSTRONGRED + 'worsened by  ' + delta_0 + CMDFormat.CEND
-    else:
-        time_str = CMDFormat.CGRAY + 'within error ' + delta_0 + CMDFormat.CEND
-    if cpu_is_improved == 1:
-        cpu_str = CMDFormat.CWAVEBLUE + 'improved by  ' + delta_1 + CMDFormat.CEND
-    elif cpu_is_improved == 0:
-        cpu_str = CMDFormat.CSTRONGRED + 'worsened by  ' + delta_1 + CMDFormat.CEND
-    else:
-        cpu_str = CMDFormat.CGRAY + 'within error ' + delta_1 + CMDFormat.CEND
-    print(CMDFormat.CLIGHTGREEN + benchmark_name + CMDFormat.CEND + '{0}  "Time" {1}; "CPU" {2}'.format(
-        filename,
-        time_str,
-        cpu_str))
-
-
-# Проверка, улучшились/ухудшились/не изменились ли показатели time и cpu
-def time_cpu_is_improved(time, cpu):
-    """Return number of line that has anything but 0.0 and flags for states of Time and CPU values"""
-    time_is_improved = 0
-    cpu_is_improved = 0
-    if time != 0 and cpu != 0:  # if both != 0
-        number = time
-        if time > 0:  # if time is worsened
-            if cpu < 0:  # if cpu is improved
-                cpu_is_improved = 1
-        else:  # if time is improved
-            time_is_improved = 1
-            if cpu < 0:  # if cpu is improved
-                cpu_is_improved = 1
-    elif time != 0:  # if cpu is within error
-        number = time
-        cpu_is_improved = -1
-        if time < 0:  # if time is improved
-            time_is_improved = 1
-    elif cpu != 0:  # if time is within error
-        number = cpu
-        time_is_improved = -1
-        if cpu < 0:  # if cpu is improved
-            cpu_is_improved = 1
-    else:
-        number = 0
-        time_is_improved = -1
-        cpu_is_improved = -1
-    return abs(number), time_is_improved, cpu_is_improved
-
-
-# Красивый вывод
-def output_message_for_two(lines_in_file, lines_out, filename, delta_in_file):
-    """Print beautified output when only 2 files were compared"""
-    for i in range(1, len(filename)):
-        print("\nResults of comparison between {0} and {1}: ".format(filename[i - 1], filename[i]) + "\n")
-        print(
-            CMDFormat.CWHITE
-            + 'Benchmark      {0} Filename {1} Changes from prev version'.format(
-                CMDFormat.SPACE * 6,
-                CMDFormat.SPACE)
-            + CMDFormat.CEND)
-        print(CMDFormat.LINE * 17)
-        j = i - 1
-        for k in range(len(lines_in_file[j])):
-            time = int(lines_in_file[j].item((k, 0)))
-            cpu = int(lines_in_file[j].item((k, 1)))
-            number, time_is_improved, cpu_is_improved = time_cpu_is_improved(time, cpu)
-            delta_0 = abs(delta_in_file[j].item(abs(number), 0))
-            delta_1 = abs(delta_in_file[j].item(abs(number), 1))
-            print_for_two(
-                lines_out[number],
-                filename[i],
-                time_is_improved,
-                delta_0,
-                cpu_is_improved,
-                delta_1)
-
-
-def names_to_str(filename):
-    """Return string out of filename-list for output message"""
-    s = '(Time; CPU) |  '
-    for i in range(len(filename)):
-        s = s + filename[i][:11]
-        if i != len(filename) - 1:
-            s = s + r'   \/   '
-    return s
-
-
-def more_zeros(lines, n):
-    """Return an array with added 0.0 where needed"""
-    double = numpy.zeros((n, 2))
-    for i in range(1, n):
-        for k in range(len(lines)):
-            if i == abs(lines[k][0]) or i == abs(lines[k][1]):
-                if lines[k][0] != 0 or lines[k][1] != 0:
-                    double[i][0] = lines[k][0]
-                    double[i][1] = lines[k][1]
-    return double
-
-
-def optimise_string(delta):
-    """Return pretty string for output message"""
-    if len(delta) != 7 and delta.startswith('-'):
-        delta = delta + '0' * (7 - len(delta))
-    elif len(delta) != 7:
-        delta = ' ' + delta + '0' * (6 - len(delta))
-    return delta
-
-
-def choose_color(is_improved, delta):
-    """Return a colored string with a value for output message"""
-    if is_improved == 1:
-        string = CMDFormat.CWAVEBLUE + delta + CMDFormat.CEND
-    elif is_improved == 0:
-        string = CMDFormat.CSTRONGRED + delta + CMDFormat.CEND
-    else:
-        string = CMDFormat.CGRAY + delta + CMDFormat.CEND
-    return string
-
-
-def output_message_for_many(lines_in_file, lines_out, filename, delta_in_file):
-    """Print output in table format for more than 2 compared files"""
-    print(CMDFormat.CWHITE + '\nBenchmark' + ' ' * 42 + names_to_str(filename) + CMDFormat.CEND)
-    print(CMDFormat.LINE * 20)
-    for i in range(len(lines_out)):  # from 0 to 54
-        out_string = ''
-        for k in range(len(filename) - 1):
-            full_lines = more_zeros(lines_in_file[k], len(lines_out))
-            time = full_lines[i][0]
-            cpu = full_lines[i][1]
-            number, time_is_improved, cpu_is_improved = time_cpu_is_improved(time, cpu)
-            delta_0 = optimise_string(str(delta_in_file[k].item(i, 0)))
-            delta_1 = optimise_string(str(delta_in_file[k].item(i, 1)))
-            if number != 0:
-                time_str = choose_color(time_is_improved, delta_0)
-                cpu_str = choose_color(cpu_is_improved, delta_1)
-            else:
-                time_str = CMDFormat.CGRAY + delta_0 + CMDFormat.CEND
-                cpu_str = CMDFormat.CGRAY + delta_1 + CMDFormat.CEND
-            out_string = out_string + time_str + '; ' + cpu_str + ' | '
-        print(CMDFormat.CLIGHTGREEN + lines_out[i] + CMDFormat.CEND + ' ' * 9 + out_string)
-
-
-def graphs():
-    """Draw graphs for 2 (or more) versions"""
-    return 0
-
-
-def main():
-    # Take input from user
-    # Ввод директории с бенчмарками
-    # (ex: c:/users/trusovii/desktop/results/, c:/users/admin/desktop/MOEX/results/)
+def create_parser():
     parser = argparse.ArgumentParser(
         description='compare tool for more than 2 benchmark outputs')
     parser.add_argument(
         'path',  # ./results/
-        help="path to benchmark-reports' folder",
+        help="Path to benchmark-reports' folder",
+        type=str
     )
+
+    subparsers = parser.add_subparsers(
+        help='Choose an output',
+        dest='mode'
+    )
+
+    cmd_parser = subparsers.add_parser(
+        'cmd',
+        help='Program writes output in cmd'
+    )
+    cmd_group = cmd_parser.add_mutually_exclusive_group(required=True)
+    cmd_group.add_argument(
+        '-f',
+        '--full',
+        help='Writes out a full comparison table with results of analysis',
+        action='store_true',
+        dest='full'
+    )
+    cmd_group.add_argument(
+        '-a',
+        '--analysis',
+        help='Writes out results of analysis',
+        action='store_true',
+        dest='analysis'
+    )
+
+    pdf_parser = subparsers.add_parser(
+        'pdf',
+        help='Program writes output in pdf-file, saves it in a specified path'
+    )
+    pdf_parser.add_argument(
+        'output',
+        help='Directs the output to a name of your choice',
+        type=str
+    )
+    pdf_group = pdf_parser.add_mutually_exclusive_group(required=True)
+    pdf_group.add_argument(
+        '-f',
+        '--full',
+        help='Writes out a full comparison table with results of analysis',
+        action='store_true',
+        dest='full'
+    )
+    pdf_group.add_argument(
+        '-a',
+        '--analysis',
+        help='Writes out results of analysis',
+        action='store_true',
+        dest='analysis'
+    )
+
+    return parser
+
+
+def main():
+    # Take input from user
+    # Ввод директории с бенчмарками, метода вывода, пути сохранения для пдф-файла
+    # (ex: c:/MOEX/results/ pdf c:/moex/mvp_comp/output)
+    parser = create_parser()
     args = parser.parse_args()
 
-    print("In progress\n")
+    if args.mode is None:
+        parser.print_help()
+        exit(1)
 
-    # print("Enter full pathname of the benchmark-reports' folder")
-    path_to_benchmarks = normalize_path(args.path)
-    filenames = get_json_filenames(path_to_benchmarks)
+    files = Model(normalize_path(args.path))
+    processing = Presenter(files)
+    showing = View(processing)
 
-    # Get list of arrays of line numbers with deviations greater than 0.5
-    # Получаем список из массивов номеров строк с отклонениями > 0.5, строки для вывода и
-    lines_in_file, err, lines_out, delta_in_file = compare_all(path_to_benchmarks, filenames)
+    if args.mode == 'cmd':
+        if args.full:
+            showing.print_cmd_f()
+        elif args.analysis:
+            showing.print_cmd_a()
+    elif args.mode == 'pdf':
+        with open(args.output, 'w') as output_file:
+            if args.f:
+                output_file.write(showing.print_pdf_f())
+            elif args.a:
+                output_file.write(showing.print_pdf_a())
+        output_file.close()
 
-    if err:
-        print('    err:::', err)
-    if len(filenames) < 3:
-        output_message_for_two(lines_in_file, lines_out, filenames, delta_in_file)
-    elif 3 <= len(filenames) < 7:
-        output_message_for_many(lines_in_file, lines_out, filenames, delta_in_file)
-    else:
-        while filenames:
-            output_message_for_many(lines_in_file[:6], lines_out, filenames[:6], delta_in_file[:6])
-            del lines_in_file[:5]
-            del filenames[:5]
-            del delta_in_file[:5]
-
-    # TODO: Улучшить вывод программы:
-    #      * График для двух (и более) версий, учитывая все значения
+    # processing = Presenter(files)
+    # processing.compare_all()
+    #
+    # showing = View()
+    # showing.print_cmd()
 
 
 if __name__ == '__main__':
-    # unittest.main()
     main()

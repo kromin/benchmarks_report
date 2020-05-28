@@ -34,6 +34,7 @@ BC_FAIL = BenchmarkColor('FAIL', '\033[91m')
 BC_ENDC = BenchmarkColor('ENDC', '\033[0m')
 BC_BOLD = BenchmarkColor('BOLD', '\033[1m')
 BC_UNDERLINE = BenchmarkColor('UNDERLINE', '\033[4m')
+BC_GRAY = BenchmarkColor('GRAY', '\033[37m')
 
 UTEST_MIN_REPETITIONS = 2
 UTEST_OPTIMAL_REPETITIONS = 9  # Lowest reasonable number, More is better.
