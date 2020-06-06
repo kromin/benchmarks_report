@@ -1,6 +1,6 @@
 # benchmarks_report
 
-    compare_1000.py
+    compare_1000.py [-h] path {cmd,pdf}...
 
     path - input path to benchmark-reports' folder
     cmd - output in command line
