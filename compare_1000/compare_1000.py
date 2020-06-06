@@ -1,4 +1,5 @@
 import inspect
+
 import numpy
 import os
 import sys
@@ -156,9 +157,8 @@ class Presenter:
         Compare all files in directory and return list of arrays containing deviations greater than 0.5,
         text for beautified output and list of arrays containing # of lines of deviations in file
         """
-        are_lines_output_made = False
 
-        for i in range(1, len(self.model.filenames)):
+        for i in range(1, self.model.get_amount()):
             # Compare files in pairs
             # Сравниваем файлы попарно
             output, self.err = self.compare_pair(self.model.filenames[i - 1], self.model.filenames[i])
@@ -166,9 +166,8 @@ class Presenter:
             # print(output)
             # Make lines for beautified output
             # Создаем строки для красивого вывода
-            if not are_lines_output_made:
+            if i == 1:
                 self.lines_output(output)
-                are_lines_output_made = True
 
             # Find numbers of deviations in output, put them into list
             # Находим числа отклонений, кладем в список в виде
@@ -220,13 +219,14 @@ class View:
         self.presenter = presenter  # Обработчик с данными
 
     def names_to_str(self):
-        """Return string out of filename-list for output message"""
-        s = ''
+        """Return list of strings with filenames for output message"""
+        header = []
         for i in range(len(self.presenter.model.filenames)):
-            s += self.presenter.model.filenames[i][:11]
-            if i != len(self.presenter.model.filenames) - 1:
-                s += '{:^8}'.format(r'\/')
-        return s
+            s = self.presenter.model.filenames[i][:11]
+            # if i != len(self.presenter.model.filenames) - 1:
+            s += '{:^8}'.format(r'\/')
+            header += [s]
+        return header
 
     def more_zeros(self, lines):
         """Return an array with added 0.0 where needed"""
@@ -285,79 +285,250 @@ class View:
         )
         return string
 
-    def output_message(self):
+    def find_sum_t_cpu(self):
+        sum_t_cpu = []
+        for i in range(len(self.presenter.benchmark_names)):
+            sum_t_cpu.append([])
+            sum_t = 0
+            sum_cpu = 0
+            for k in range(self.presenter.model.get_amount() - 1):
+                sum_t += self.presenter.delta_in_file[k].item(i, 0)
+                sum_cpu += self.presenter.delta_in_file[k].item(i, 1)
+            sum_t_cpu[i] = [sum_t, sum_cpu]
+        return sum_t_cpu
+
+    def output_message(self, is_full):
         """Return an array of strings for output"""
         first_col_width = find_longest_name(self.presenter.benchmark_names)
         first_col_width = max(
             first_col_width,
             len('Benchmark'))
 
-        first_line = '\n{:<{}s}{}'.format('Benchmark',
-                                          first_col_width,
-                                          self.names_to_str())
-        bar = '{:-<{}s}{:-^17}{:-<{}s}'.format('',
-                                               first_col_width + 6,
-                                               '(Time; CPU)',
-                                               '',
-                                               len(first_line) - first_col_width - 24
-                                               )
-        message = [first_line, bar]
+        def get_first_line(names):
+            lines = []  # ['benchmark    name.json \/ name.json ...', ...]
+            while names:
+                line = '\n{:<{}s}'.format('Benchmark',
+                                          first_col_width)
+                n = 7 if len(names) > 7 else len(names)
+                for p in range(n):
+                    line += names[p]
+                bar = '{}{:-^17}{}'.format('-' * (first_col_width + 6),
+                                           '(Time; CPU)',
+                                           '-' * (len(line) - first_col_width - 32))
+                lines += [line[:-8] + '\n' + bar]
+                del names[:n - 1]
+                if len(names) == 1:
+                    del names[:1]
+            return lines
 
-        for i in range(len(self.presenter.benchmark_names)):
-            time_cpu_res = ''
-            for k in range(len(self.presenter.model.filenames) - 1):
-                full_lines = self.more_zeros(self.presenter.lines_in_file[k])
-                time = full_lines[i][0]
-                cpu = full_lines[i][1]
-                time_is_improved, cpu_is_improved = self.time_cpu_is_improved(time, cpu)
-                delta_0 = self.presenter.delta_in_file[k].item(i, 0)
-                delta_1 = self.presenter.delta_in_file[k].item(i, 1)
-                time_cpu_res += '{:8}{endc};{:8}{endc} |'.format(self.choose_color(time_is_improved, delta_0),
-                                                                 self.choose_color(cpu_is_improved, delta_1),
-                                                                 endc=BC_ENDC)
-            message += ['{}{:<{}}{endc}{}'.format(BC_HEADER,
-                                                  self.presenter.benchmark_names[i],
-                                                  first_col_width + 6,
-                                                  time_cpu_res,
-                                                  endc=BC_ENDC)]
-        return message
+        first_line = get_first_line(self.names_to_str())  # list of strings
+        blocks = []
 
-    def print_cmd_f(self):
+        # Блок анализа - вывод "плохих" и "хороших" бенчмарков
+        sum_t_cpu = self.find_sum_t_cpu()
+        analysis_block = []
+        analysis_block += ['{}{}{endc}'.format(BC_FAIL, '\nWorsened benchmarks:', endc=BC_ENDC)]
+        for k in range(len(self.presenter.benchmark_names)):
+            if sum_t_cpu[k][0] >= 0.05 or sum_t_cpu[k][1] >= 0.05:
+                analysis_block += [self.presenter.benchmark_names[k]]
+        analysis_block += ['{}{}{endc}'.format(BC_CYAN, '\nImproved benchmarks:', endc=BC_ENDC)]
+        for k in range(len(self.presenter.benchmark_names)):
+            if sum_t_cpu[k][0] <= -0.05 or sum_t_cpu[k][1] <= -0.05:
+                analysis_block += [self.presenter.benchmark_names[k]]
+
+        blocks += [analysis_block]
+
+        # Если был указан --full
+        if is_full:
+            # выводим таблицу сравнений бенчмарков
+            for q in range(len(first_line)):
+                message = [first_line[q]]
+                for i in range(len(self.presenter.benchmark_names)):
+                    time_cpu_res = ''
+                    # Чтобы красиво умещалось, помещаем по 6 сравнений в один блок
+                    for k in range(6 * q, 6 * (q + 1)):
+                        try:
+                            full_lines = self.more_zeros(self.presenter.lines_in_file[k])
+                            time = full_lines[i][0]
+                            cpu = full_lines[i][1]
+                            time_is_improved, cpu_is_improved = self.time_cpu_is_improved(time, cpu)
+                            delta_0 = self.presenter.delta_in_file[k].item(i, 0)
+                            delta_1 = self.presenter.delta_in_file[k].item(i, 1)
+
+                            time_cpu_res += '{:8}{endc};{:8}{endc} |'.format(self.choose_color(time_is_improved, delta_0),
+                                                                             self.choose_color(cpu_is_improved, delta_1),
+                                                                             endc=BC_ENDC)
+                        # Если сравнения не полностью заполняют таблицу - прекращаем вывод, это последний блок
+                        except IndexError:
+                            break
+                    message += ['{}{:<{}}{endc}{}'.format(BC_HEADER,
+                                                          self.presenter.benchmark_names[i],
+                                                          first_col_width + 6,
+                                                          time_cpu_res,
+                                                          endc=BC_ENDC)]
+                blocks += [message]
+        return blocks
+
+    def print_cmd(self, is_full):
         """Print full output in command line"""
-        self.presenter.compare_all()
-
         if self.presenter.err:
-            print('    err:::', self.presenter.err)
+            print('{}{:>11s}{}{endc}'.format(BC_FAIL,
+                                             'err::: ',
+                                             self.presenter.err,
+                                             endc=BC_ENDC
+                                             ))
 
-        for line in self.output_message():
-            print(line)
-
-        # if len(self.presenter.model.filenames) < 9:
-        #
-        # else:
-        #     pass
-        # if len(self.presenter.model.filenames) < 3:
-        #     self.output_message_for_two()
-        # elif 3 <= len(self.presenter.model.filenames) < 7:
-        #     self.output_message_for_many()
-        # else:
-        #     while self.presenter.model.filenames:
-        #         output_message_for_many(lines_in_file[:6], lines_out, filenames[:6], delta_in_file[:6])
-        #         del lines_in_file[:5]
-        #         del filenames[:5]
-        #         del delta_in_file[:5]
+        for block in self.output_message(is_full):
+            for line in block:
+                print(line)
 
     def print_cmd_a(self):
         """Print analysis output in command line"""
         pass
 
-    def print_pdf_f(self):
-        """Print full output in pdf-file"""
-        return ''
+    def create_graphs(self, path):
+        """Creates graphs for pdf-file"""
+        import plotly.graph_objects as go
 
-    def print_pdf_a(self):
-        """Print analysis output in pdf-file"""
-        return ''
+        x = []
+        sum_t_cpu = []
+
+        # обозначения для оси Х
+        for c in range(len(self.presenter.model.filenames) - 1):
+            x += ['{}-{}'.format(self.presenter.model.filenames[c][7:11],
+                                 self.presenter.model.filenames[c + 1][7:11])]
+        # получаем значения для оси У
+        for i in range(len(self.presenter.benchmark_names)):
+            # для каждого бенчмарка новые значения
+            y_t = []
+            y_cpu = []
+            y_t_sum = []
+            y_cpu_sum = []
+            # создаем массивы для значений t и cpu
+            for k in range(self.presenter.model.get_amount() - 1):
+                y_t += [self.presenter.delta_in_file[k].item(i, 0)]
+                y_cpu += [self.presenter.delta_in_file[k].item(i, 1)]
+            # находим суммы этих значений
+            # (количество сумм равно количеству проверяемых файлов для красоты вывода)
+            for a in range(self.presenter.model.get_amount() - 1):
+                y_t_sum += [numpy.sum(y_t)]
+                y_cpu_sum += [numpy.sum(y_cpu)]
+                # создаем массив сумм для их дальнейшей обработки
+                if a == 0:
+                    sum_t_cpu.append([y_t_sum[0], y_cpu_sum[0]])
+            # рисуем графики
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=x, y=y_t,
+                                     mode='lines+markers',
+                                     line=dict(color='royalblue'),
+                                     name='Time'))
+            fig.add_trace(go.Scatter(x=x, y=y_cpu,
+                                     mode='lines+markers',
+                                     line=dict(color='firebrick'),
+                                     name='CPU'))
+            fig.add_trace(go.Scatter(x=x, y=y_t_sum,
+                                     mode='lines',
+                                     line=dict(color='royalblue', dash='dot'),
+                                     name='sum(Time)'))
+            fig.add_trace(go.Scatter(x=x, y=y_cpu_sum,
+                                     mode='lines',
+                                     line=dict(color='firebrick', dash='dot'),
+                                     name='sum(CPU)'))
+            fig.update_layout(title='{}'.format(self.presenter.benchmark_names[i]),
+                              xaxis_title='Results',
+                              yaxis_title='Comparison')
+            fig.write_image('{}{}{}{}'.format(path, '/fig_', i, '.png'))
+        return sum_t_cpu
+
+    def create_pdf(self, path, name, sum_t_cpu, if_graphs):
+        """Creates pdf-file"""
+        from fpdf import FPDF
+
+        def h1(text):
+            """Makes a header, text-size 22"""
+            pdf.set_font("Courier", 'B', size=22)
+            pdf.cell(190, 12, txt=text, ln=1, align="C")
+            pdf.set_font("Courier", size=11)
+
+        pdf = FPDF()
+        pdf.add_page()
+
+        h1("Analysis")
+
+        def print_bench_res(kk, link):
+            """Prints sums of benchmarks' t and cpu"""
+            pdf.cell(10)
+            pdf.cell(100, 5, txt='{}'.format(self.presenter.benchmark_names[kk]), ln=1, link=link)
+            pdf.cell(20)
+            pdf.cell(100, 5,
+                     txt='t = {:+7.4f}; CPU = {:+7.4f}'.format(sum_t_cpu[kk][0], sum_t_cpu[kk][1]),
+                     ln=1, link=link)
+            pdf.cell(0, 2, ln=1)
+
+        pdf.set_text_color(r=80, g=0, b=0)
+        pdf.cell(100, 10, txt="Benchmarks with worsened performance:", ln=1)
+        pdf.set_text_color(r=0)
+        links = []
+        for k in range(len(self.presenter.benchmark_names)):
+            links += [pdf.add_link()]
+            if sum_t_cpu[k][0] >= 0.05 or sum_t_cpu[k][1] >= 0.05:
+                print_bench_res(k, links[k])
+
+        pdf.set_text_color(r=0, g=80, b=0)
+        pdf.cell(100, 10, txt="Benchmarks with improved performance:", ln=1)
+        pdf.set_text_color(r=0)
+        for k in range(len(self.presenter.benchmark_names)):
+            if sum_t_cpu[k][0] <= -0.05 or sum_t_cpu[k][1] <= -0.05:
+                print_bench_res(k, links[k])
+
+        # Если вывод был full - добавляем графики
+        if if_graphs:
+            pdf.add_page()
+            h1("Graphs")
+            for i in range(len(self.presenter.benchmark_names)):
+                pdf.image('{}{}{}{}'.format(path, '/fig_', i, '.png'), w=160)
+                pdf.set_link(links[i])
+                pdf.cell(0, 5, ln=1)
+
+        pdf.output(path + name)
+
+    def print_pdf(self, path, if_del, if_graphs):
+        """Create full output in 'path/full.pdf' pdf-file"""
+
+        if not os.path.exists(path):
+            os.mkdir(path)
+
+        name = '/analysis.pdf'
+
+        # создаем графики для пдф-файла, если --full==True
+        # sum_t_cpu - массив сумм для нахождения среди них выходящих за пределы интервала +-0,05
+        if if_graphs:
+            print('...drawing graphs')
+            name = '/full.pdf'
+            sum_t_cpu = self.create_graphs(path)
+            print('Completed drawing graphs')
+        else:
+            sum_t_cpu = self.find_sum_t_cpu()
+
+        # чтобы не было конфликта при создании пдф-файла, проверяем есть ли уже такой в папке,
+        # если есть - удаляем, для этого сначала даем права на удаление
+        if os.path.exists(path + name):
+            os.chmod(path + name, 0o777)
+            os.remove(path + name)
+
+        # Создаем пдф-файл "full.pdf"
+        print('...creating pdf-file')
+        self.create_pdf(path, name, sum_t_cpu, if_graphs)
+        print('Completed creating pdf-file')
+
+        # Если надо было удалить графики - удаляем
+        if if_del:
+            print('...removing png-files')
+            for i in range(len(self.presenter.benchmark_names)):
+                png_name = '{}{}{}'.format('/fig_', i, '.png')
+                if os.path.exists(path + png_name):
+                    os.remove(path + png_name)
+            print('Completed removing png-files')
 
 
 # Приводим путь к нормальному виду
@@ -382,9 +553,10 @@ def create_parser():
     not supported yet:
         -a, --analysis - analysis output
     pdf - output in pdf-file
-        output - direct the output to a name of your choice
+        output_path - path for output pdf-file
         -f, --full - full output
         -a, --analysis - analysis output
+        -d, --delete_png - delete all graph files
     """
     parser = argparse.ArgumentParser(
         description='compare tool for more than 2 benchmark outputs')
@@ -424,15 +596,15 @@ def create_parser():
         help='Program writes report in pdf-file, saves it in a specified path'
     )
     pdf_parser.add_argument(
-        'output',
-        help='Directs the output to a name of your choice',
+        'output_path',
+        help='Path for output pdf-file',
         type=str
     )
     pdf_group = pdf_parser.add_mutually_exclusive_group(required=True)
     pdf_group.add_argument(
         '-f',
         '--full',
-        help='Writes out a full comparison table with results of analysis',
+        help='Writes out a full comparison table and results of analysis',
         action='store_true',
         dest='full'
     )
@@ -442,6 +614,13 @@ def create_parser():
         help='Writes out results of analysis',
         action='store_true',
         dest='analysis'
+    )
+    pdf_parser.add_argument(
+        '-d',
+        '--delete_png',
+        help='Deletes graph pictures',
+        action='store_true',
+        dest='d'
     )
 
     return parser
@@ -459,21 +638,19 @@ def main():
         exit(1)
 
     files = Model(normalize_path(args.path))
+
+    if files.get_amount() < 2:
+        parser.print_help()
+        exit(2)
+
     processing = Presenter(files)
+    processing.compare_all()
     showing = View(processing)
 
     if args.mode == 'cmd':
-        if args.full:
-            showing.print_cmd_f()
-        elif args.analysis:
-            showing.print_cmd_a()
+        showing.print_cmd(args.full)
     elif args.mode == 'pdf':
-        with open(args.output, 'w') as output_file:
-            if args.f:
-                output_file.write(showing.print_pdf_f())
-            elif args.a:
-                output_file.write(showing.print_pdf_a())
-        output_file.close()
+        showing.print_pdf(args.output_path, args.d, args.full)
 
 
 if __name__ == '__main__':
