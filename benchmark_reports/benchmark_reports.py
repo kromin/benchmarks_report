@@ -451,6 +451,7 @@ def normalize_path(path):
     return path
 
 
+
 def create_parser():
     """
     Create parser for input
@@ -466,6 +467,7 @@ def create_parser():
         -a, --analysis - analysis output
         -d, --delete_png - delete all graph files
     """
+
     parser = argparse.ArgumentParser(
         description='compare tool for more than 2 benchmark outputs')
     parser.add_argument(
