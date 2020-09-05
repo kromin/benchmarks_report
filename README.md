@@ -10,4 +10,4 @@
         output_path - path for output pdf-file
         [-f, --full - full output
          -a, --analysis - analysis output]
-        -d, --delete_png - delete all graph files
+         -d, --delete_png - delete all graph files
