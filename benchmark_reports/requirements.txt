@@ -2,7 +2,7 @@ certifi==2022.12.7
 chardet==3.0.4
 fpdf==1.7.2
 idna==2.10
-numpy==1.19.1
+numpy==1.22.0
 plotly==4.9.0
 psutil==5.7.2
 requests==2.24.0
